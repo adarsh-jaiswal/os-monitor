@@ -3,6 +3,7 @@ package com.monitoring.service.metrics;
 import com.monitoring.model.MetricDto;
 import com.monitoring.repository.MetricsDtoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -14,6 +15,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import static java.util.logging.Level.SEVERE;
 
 /**
  * To maintain the metrics history cache. This class uses write-through cache technique.
@@ -52,8 +55,8 @@ public class MetricsStateManager {
      * @param metric
      */
     public void updateMetrics(MetricDto metric) {
-        //calls db insert if this fails then we don't write in the cache.
-        metricsDtoRepository.save(metric);
+        if (!saveMetrics(metric)) return;
+
         writeLock.lock();
         try {
             long currTime = metric.getTime();
@@ -95,11 +98,24 @@ public class MetricsStateManager {
      */
     private Deque<MetricDto> updateHistoryFromDisk() {
         long now = Instant.now().getEpochSecond();
-        List<MetricDto> metrics = metricsDtoRepository.getByTimeInterval(now - DURATION, now);
-        LOGGER.log(Level.INFO, "cache history" + metrics.size());
-        Deque<MetricDto> metricsHistory = new ArrayDeque<>(metrics);;
+        try {
+            return new ArrayDeque<>(metricsDtoRepository.getByTimeInterval(now - DURATION, now));
+        } catch (DataAccessException e) {
+            LOGGER.log(SEVERE, "Error in retrieving metrics");
+            LOGGER.log(SEVERE, e.getMessage());
+        }
+        return new ArrayDeque<>();
+    }
 
-        return metricsHistory;
+    private boolean saveMetrics(MetricDto metric) {
+        try {
+            metricsDtoRepository.save(metric);
+        } catch (DataAccessException e) {
+            LOGGER.log(SEVERE, "Error in saving metrics");
+            LOGGER.log(SEVERE, e.getMessage());
+            return false;
+        }
+        return true;
     }
 
 }
