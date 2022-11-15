@@ -8,7 +8,7 @@ import java.time.Instant;
 
 public class MetricCapture {
 
-    private static OperatingSystemMXBean bean = (com.sun.management.OperatingSystemMXBean) ManagementFactory
+    private static final OperatingSystemMXBean bean = (com.sun.management.OperatingSystemMXBean) ManagementFactory
             .getOperatingSystemMXBean();
 
 
@@ -22,4 +22,7 @@ public class MetricCapture {
 
         return capturedMetric;
     }
+
+
+
 }

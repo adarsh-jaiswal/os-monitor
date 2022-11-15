@@ -12,10 +12,10 @@ import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import static java.util.logging.Level.INFO;
 import static java.util.logging.Level.SEVERE;
 
 /**

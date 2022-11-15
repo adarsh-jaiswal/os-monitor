@@ -14,15 +14,18 @@ public class JDBCMetricsDtoRepository implements MetricsDtoRepository {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    private static final String INSERT = "INSERT INTO metrics (time, cpu, memory) VALUES(?,?,?)";
+    private static final String FETCH_METRICS = "SELECT * from metrics where time < ? and time >  ?  order by time asc";
+
     @Override
     public int save(MetricDto metric) {
-        return jdbcTemplate.update("INSERT INTO metrics (time, cpu, memory) VALUES(?,?,?)",
-                new Object[] { metric.getTime(), metric.getCpu(), metric.getMemory() });
+        return jdbcTemplate.update(INSERT,
+                metric.getTime(), metric.getCpu(), metric.getMemory());
     }
 
     @Override
     public List<MetricDto> getByTimeInterval(long start, long end) {
-        return jdbcTemplate.query("SELECT * from metrics where time < " + end +" and time > " + start + " order by time asc",
-                BeanPropertyRowMapper.newInstance(MetricDto.class));
+        return jdbcTemplate.query(FETCH_METRICS, BeanPropertyRowMapper.newInstance(MetricDto.class),
+                end, start);
     }
 }
