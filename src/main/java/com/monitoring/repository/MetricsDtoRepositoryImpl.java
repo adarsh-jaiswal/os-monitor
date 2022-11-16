@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public class JDBCMetricsDtoRepository implements MetricsDtoRepository {
+public class MetricsDtoRepositoryImpl implements MetricsDtoRepository {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;

@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -15,7 +16,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import static java.util.logging.Level.INFO;
 import static java.util.logging.Level.SEVERE;
 
 /**
@@ -24,27 +24,22 @@ import static java.util.logging.Level.SEVERE;
 @Component
 public class MetricsStateManager {
 
-    public static final Logger LOGGER = Logger.getLogger(MetricsStateManager.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(MetricsStateManager.class.getName());
 
-    private final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
-    private final Lock readLock = rwl.readLock();
-    private final Lock writeLock = rwl.writeLock();
+    private static final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
+    private static final Lock readLock = rwl.readLock();
+    private static final Lock writeLock = rwl.writeLock();
 
-    private static final int DURATION = 86_400; //24 hrs in seconds
+    private static final Integer DURATION = 86_400; //24 hrs in seconds
 
     /**
      * metricsHistory is the cache which maintains a metrics queue of past 24hrs.
      */
-    private final Deque<MetricDto> metricsHistory;
-
-
-    private final MetricsDtoRepository metricsDtoRepository;
+    private Deque<MetricDto> metricsHistory;
 
     @Autowired
-    public MetricsStateManager(MetricsDtoRepository metricsDtoRepository) {
-        this.metricsDtoRepository = metricsDtoRepository;
-        this.metricsHistory = updateHistoryFromDisk();
-    }
+    private MetricsDtoRepository metricsDtoRepository;
+
 
     /**
      *  To be called every 30 sec from the scheduler.
@@ -84,7 +79,7 @@ public class MetricsStateManager {
     private List<MetricDto> deepCopyMetricsHistory() {
         readLock.lock();
         try {
-            return metricsHistory.parallelStream().collect(Collectors.toList());
+            return this.metricsHistory.parallelStream().collect(Collectors.toList());
         } finally {
             readLock.unlock();
         }
@@ -96,26 +91,27 @@ public class MetricsStateManager {
      *
      * @return
      */
-    private Deque<MetricDto> updateHistoryFromDisk() {
+    @PostConstruct
+    void updateHistoryFromDisk() {
         long now = Instant.now().getEpochSecond();
         try {
-            return new ArrayDeque<>(metricsDtoRepository.getByTimeInterval(now - DURATION, now));
+            this.metricsHistory = new ArrayDeque<>(metricsDtoRepository.getByTimeInterval(now - DURATION, now));
         } catch (DataAccessException e) {
             LOGGER.log(SEVERE, "Error in retrieving metrics");
             LOGGER.log(SEVERE, e.getMessage());
+            this.metricsHistory = new ArrayDeque<>();
         }
-        return new ArrayDeque<>();
     }
 
     private boolean saveMetrics(MetricDto metric) {
         try {
             metricsDtoRepository.save(metric);
+            return true;
         } catch (DataAccessException e) {
             LOGGER.log(SEVERE, "Error in saving metrics");
             LOGGER.log(SEVERE, e.getMessage());
             return false;
         }
-        return true;
     }
 
 }
